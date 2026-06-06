@@ -49,25 +49,49 @@ export default async function handler(req, res) {
       process.env.GEMINI_API_KEY
     );
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-    });
+    const models = [
+      "gemini-2.5-flash-lite",
+      "gemini-2.5-flash"
+    ];
 
-    const result = await model.generateContent(
-      `${systemPrompt}\n\nUser Idea:\n${idea}`
-    );
+    let output = null;
 
-    const response = await result.response;
+    for (const modelName of models) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+        });
+
+        const result = await model.generateContent(
+          `${systemPrompt}\n\nUser Idea:\n${idea}`
+        );
+
+        const response = await result.response;
+
+        output = response.text();
+
+        break;
+      } catch (err) {
+        console.log(`Model failed: ${modelName}`);
+      }
+    }
+
+    if (!output) {
+      throw new Error(
+        "Gemini servers are currently busy."
+      );
+    }
 
     return res.status(200).json({
-      text: response.text(),
+      text: output,
     });
 
   } catch (error) {
     console.error("Gemini Error:", error);
 
     return res.status(500).json({
-      error: "Failed to generate prompt. Please try again.",
+      error:
+        "⚠️ Gemini servers are busy right now. Please try again in a minute.",
     });
   }
 }
